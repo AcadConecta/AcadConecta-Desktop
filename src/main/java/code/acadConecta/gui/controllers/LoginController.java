@@ -44,12 +44,10 @@ public class LoginController {
         if (userService.validateLogin(new String[] {userEmail.getText(), userPassword.getText()})) {
             //definindo o usuario atual
             TokenUtil.setCurrentUser(HashItem.defineHash(userEmail.getText()));
+            TokenUtil.setCurrentuserEmail(userEmail.getText());
 
             loadView.load("MainController", null, "AcadConecta");
             Notification.showNotification("Bem-vindo(a)", null, "Aproveite o AcadConecta!", Alert.AlertType.CONFIRMATION);
-        }
-        else {
-            Notification.showNotification("Erro", null, "A senha informada está incorreta", Alert.AlertType.ERROR);
         }
     }
 }

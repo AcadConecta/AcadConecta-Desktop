@@ -1,9 +1,14 @@
 package code.acadConecta.gui.controllers;
 
 import code.acadConecta.gui.AcadConectaJavaFxApplication;
+import code.acadConecta.gui.util.LoadView;
+import code.acadConecta.gui.util.Notification;
+import code.acadConecta.model.entites.Chanel;
+import code.acadConecta.model.entites.Message;
 import code.acadConecta.model.entites.User;
 import code.acadConecta.model.util.TokenUtil;
 import code.acadConecta.services.ChanelService;
+import code.acadConecta.services.MessageService;
 import code.acadConecta.services.UserService;
 import javafx.animation.FadeTransition;
 import javafx.animation.RotateTransition;
@@ -25,23 +30,43 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
+import net.rgielen.fxweaver.core.FxWeaver;
 import net.rgielen.fxweaver.core.FxmlView;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
+
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.List;
+
 @FxmlView("/gui/views/MainView.fxml")
 @Controller
 public class MainController {
 
+    //usado para exibição dos canais
     @Autowired
     private ChanelService chanelService;
 
+    //usado para exibir informações sobre o usuário logado
     @Autowired
     private UserService userService;
+
+    //injetando biblioteca para exibição das mensagens
+    @Autowired
+    private FxWeaver fxWeaver;
+
+    @Autowired
+    private LoadView loadView;
+
+    @Autowired
+    private MessageController messageController;
+
+    @Autowired
+    private MessageService messageService;
 
     protected static final Long EDITAIS = 1L;
     protected static final Long VAGAS = 2L;
@@ -84,7 +109,6 @@ public class MainController {
     private VBox paneViewSuport;
 
     private boolean menuIsactive = true;
-
 
     @FXML
     private void toggleMenu() {
@@ -129,19 +153,8 @@ public class MainController {
         onAnyChanelClicked();
     }
 
-    //define o título do canal
-    private void setTitleChanel(Long id) {
-        if (titlePanel.isVisible()) {
-            String chanelTitle = chanelService.findById(id).getName();
-            if (chanelTitle != null) {
-                titlePanel.setText(chanelTitle);
-            }
-            else {
-                System.out.println("Error to load title page");
-            }
-        }
-    }
 
+    //formata a exibição da data exibida nas mensagens
     private String dateFormater(String dateIn) {
         String dateDefault = "yyyy-MM-dd";
         String dateOutput = "dd/MM/yyyy";
@@ -160,79 +173,85 @@ public class MainController {
             dateFormatted = date.format(dtmOutput);
 
 
-        } catch (DateTimeParseException e) {
-            System.out.println("Erro ao converter a data: " + e.getMessage());
+        } catch (DateTimeParseException error) {
+            System.out.println("Error in add formater on date: " + error.getMessage());
         }
         return dateFormatted;
     }
 
-//    private void loadInView(List<Message> messages) {
-//        messages.forEach(message -> {
-//            try {
-//                // Pegando usuário associado à mensagem
-//                Users users = DataService.findByHashEmail(message.getId_users().getEmail());
-//
-//                String idHashUser = "#" + (users.getEmail().substring(0, 4));;
-//
-//                FXMLLoader fxmlLoader = null;
-//                VBox messageElement = null;
-//
-//                // Usado para definir o tamanho da margem esquerda da mensagem
-//                boolean user_self = true;
-//
-//                // Adicionando estilo diferente se a mensagem foi enviada pelo usuário logado
-//                if (users.getEmail().equals(TokenUserUtil.getUserToken())) {
-//                    fxmlLoader = new FXMLLoader(getClass().getResource("/gui/views/components/MessageViewSelf.fxml"));
-//                } else {
-//                    fxmlLoader = new FXMLLoader(getClass().getResource("/gui/views/components/MessageViewOther.fxml"));
-//                    user_self = false;
-//                }
-//
-//                messageElement = fxmlLoader.load();
-//
-//                if (user_self) {
-//                    VBox.setMargin(messageElement, new Insets(10, 0, 0, 700));
-//                } else {
-//                    VBox.setMargin(messageElement, new Insets(10, 0, 0, 100));
-//                }
-//
-//                // Adicionando listener para ajustar o clip após o layout ser definido
-//                VBox finalMessageElement = messageElement;
-//
-//                messageElement.layoutBoundsProperty().addListener((observable, oldValue, newValue) -> {
-//
-//                    VBox contentMessage = (VBox) finalMessageElement.getChildren().get(1);
-//
-//                    //pegando o conteudo textual e adicionando evento
-//                    contentMessage.layoutBoundsProperty().addListener((observableInter, oldValueInter, newValueInter) -> {
-//                        Rectangle clip = new Rectangle();
-//                        clip.setWidth(newValueInter.getWidth());
-//                        clip.setHeight(newValueInter.getHeight());
-//                        clip.setArcWidth(10);
-//                        clip.setArcHeight(10);
-//                        contentMessage.setClip(clip);
-//                    });
-//                });
-//
-//                MessageControl messageControl = fxmlLoader.getController();
-//
-//                Image image = ImageUtil.getImageWithEmailUser(users.getEmail());
-//
-//                String hour = message.getHour().toString();
-//                String hourFormated = hour.substring(0, 8);
-//
-//                // Adicionando o conteúdo do banco na mensagem
-//                messageControl.setContent(users.getName(), dateFormater(message.getDate().toString()), hourFormated, message.getContent(), image, idHashUser);
-//
-//                // Adicionando a mensagem no scrollpane
-//                if (messageElement != null) {
-//                    contentScrollPane.getChildren().add(messageElement);
-//                }
-//            } catch (IOException error) {
-//                System.out.println("Error in load message: " + error.getMessage());
-//            }
-//        });
-//    }
+    //carregas as mensagens do respectivo canal que está sendo exibido
+    private void loadInView(List<Message> messages) {
+        messages.forEach(message -> {
+            try {
+                // Pegando usuário associado à mensagem
+                User user = userService.findById(message.getId_user().getEmail());
+
+                //string utilizada para exibir ops 4 primeiros dígitos do hash do email do usuário
+                //seu objetivo é diferenciar usuários com o mesmo nome
+                String idHashUser = "#" + (user.getEmail().substring(0, 4));;
+
+                // usado para definir o tamanho da margem esquerda da mensagem
+                boolean user_self = false;
+
+                VBox messageElement = loadView.generateMessageElement(false);
+
+                // adicionando estilo diferente se a mensagem foi enviada pelo usuário logado
+                if (user.getEmail().equals(TokenUtil.getCurrentUser())) {
+                    messageElement = loadView.generateMessageElement(true);
+                    user_self = true;
+                }
+
+                if (user_self) {
+                    VBox.setMargin(messageElement, new Insets(10, 0, 0, 700));
+                } else {
+                    VBox.setMargin(messageElement, new Insets(10, 0, 0, 100));
+                }
+
+                // Adicionando listener para ajustar o clip após o layout ser definido
+                VBox finalMessageElement = messageElement;
+
+                messageElement.layoutBoundsProperty().addListener((observable, oldValue, newValue) -> {
+
+                    VBox contentMessage = (VBox) finalMessageElement.getChildren().get(1);
+
+                    //pegando o conteudo textual e adicionando evento
+                    contentMessage.layoutBoundsProperty().addListener((observableInter, oldValueInter, newValueInter) -> {
+                        Rectangle clip = new Rectangle();
+                        clip.setWidth(newValueInter.getWidth());
+                        clip.setHeight(newValueInter.getHeight());
+                        clip.setArcWidth(10);
+                        clip.setArcHeight(10);
+                        contentMessage.setClip(clip);
+                    });
+                });
+
+                Image image = new Image(new ByteArrayInputStream(user.getImage()));
+
+
+                //fromatando o horário de envio da mensagem
+                String hour = message.getHour().toString();
+                String hourFormated = hour.substring(0, 8);
+
+                // Adicionando o conteúdo do banco na mensagem
+                messageController.setContent(user.getName(), dateFormater(message.getDate().toString()), hourFormated, message.getContent(), image, idHashUser);
+
+                // Adicionando a mensagem no scrollpane
+                if (messageElement != null) {
+                    contentScrollPane.getChildren().add(messageElement);
+                }
+            } catch (Exception error) {
+                System.out.println("Error in load message: " + error.getMessage());
+            }
+        });
+    }
+
+    //prepara a tela(limpando) e carrega as mensagens associadas ao canal no banco de dados
+    private void loadMessagesByChanel(Long id) {
+        List<Message> messages = messageService.getMessagesByIdChanel(chanelService.findById(id));
+
+        clearScrollPane();
+        loadInView(messages);
+    }
 
     private void clearScrollPane() {
         if (contentScrollPane != null) {
@@ -240,6 +259,20 @@ public class MainController {
         }
     }
 
+    //define o título do canal
+    private void setTitleChanel(Long id) {
+        if (titlePanel.isVisible()) {
+            String chanelTitle = chanelService.findById(id).getName();
+            if (chanelTitle != null) {
+                titlePanel.setText(chanelTitle);
+            }
+            else {
+                System.out.println("Error to load title page");
+            }
+        }
+    }
+
+    //verificando se o usuário é opu não especial, caso for, será a ele permitido o envio de mensagens em outros canais
     private void checkAndSetChatBar() {
         if (titlePanel != null) {
             try{
@@ -260,30 +293,22 @@ public class MainController {
         }
     }
 
-//    private void loadMessagesInChanel(Long id) {
-//        Chanel chanel = DataService.findByChanelId(id);
-//
-//        List<Message> messages = DataService.findMessageById(chanel);
-//
-//        clearScrollPane();
-//        loadInView(messages);
-//    }
-
+    //método que prepara a transição entre os canais
     private void preparateView(Long chanelId) {
         //define o titulo da página
         setTitleChanel(chanelId);
 
-        //define o canal atual
+        //define o canal atual nas variáveis tipo "Token"
         TokenUtil.setCurrentChanel(chanelId);
 
         //limpa a tela
         clearScrollPane();
 
-        //verificar se o canal é o chat, permite acessoa a barra de digitação
+        //verificar se o canal é o chat, permite acesso a barra de digitação
         checkAndSetChatBar();
 
         //carrega as mensagens do canal clicado
-//        loadMessagesInChanel(chanelId);
+        loadMessagesByChanel(chanelId);
     }
 
     @FXML
@@ -301,32 +326,32 @@ public class MainController {
         preparateView(VAGAS);
     }
 
-//    @FXML
-//    public void onUserSubmitMessage() {
-//        String input = contentChatBar.getText();
-//
-//        if (input.isEmpty()) {
-//            Alerts.showAlert("Falha", null, "Erro ao enviar mensagem, campo está vazio", Alert.AlertType.WARNING);
-//        }
-//        else {
-//            //buscando o usuario que enviou
-//            Users users = DataService.findByHashEmail(TokenUserUtil.getUserToken());
-//            Chanel chanel = DataService.findByChanelId(TokenChanelUtil.getToken());
-//
-//            if (users != null && chanel != null) {
-//                Message message = new Message(null, LocalTime.now(), LocalDate.now(), input, users, chanel);
-//
-//                DataService.saveItem(message);
-//
-//                loadMessagesInChanel(TokenChanelUtil.getToken());
-//                contentChatBar.setText("");
-//
-//            }
-//            else {
-//                Alerts.showAlert("Erro", null, "Erro ao enviar a mensagem, tente novamente", Alert.AlertType.WARNING);
-//            }
-//        }
-//    }
+    @FXML
+    public void onUserSubmitMessage() {
+        String input = contentChatBar.getText();
+
+        if (input.isEmpty()) {
+            Notification.showNotification("Aviso", null, "O mensagem não pode ficar vazia!", Alert.AlertType.WARNING);
+        }
+        else {
+            //buscando o usuario que enviou
+            User user = userService.findById(TokenUtil.getCurrentUser());
+            Chanel chanel = chanelService.findById(TokenUtil.getCurrentChanel());
+
+            if (user != null && chanel != null) {
+                Message message = new Message(null, LocalTime.now(), LocalDate.now(), input, user, chanel);
+
+                messageService.save(message);
+
+                loadMessagesByChanel(TokenUtil.getCurrentChanel());
+                contentChatBar.setText("");
+
+            }
+            else {
+                Notification.showNotification("Aviso", null, "Não foi possível enviar suar mensagem, tente novamente mais tarde", Alert.AlertType.WARNING);
+            }
+        }
+    }
 
     @FXML
     public void onProfileButtonClicked() {
@@ -346,12 +371,16 @@ public class MainController {
         return (rootElement.getWidth()) - 200;
     }
 
+    //método responsável por alterar a tela lateral direita entre canais e perfil
+    //idPane representa a tela que deverá ser renderizada
     private void alternateChanelInProfile(int idPane) {
         //manipulando tela para transição entre canis e perfil
         if (idPane == CANAIS) {
 
+            //removendo o VBox direito, ou seja, o local onde os canais e seus conteúdos são exibidos
             rootElement.getChildren().remove(1);
 
+            //armazenando
             VBox chanelDefaultView = paneViewSuport;
 
             rootElement.getChildren().add(chanelDefaultView);
@@ -373,13 +402,9 @@ public class MainController {
 
             HBox profileView = null;
 
-            try {
-                FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/gui/views/ProfileView.fxml"));
-                profileView = fxmlLoader.load();
 
-            } catch (IOException error) {
-                System.out.println("Error ao carregar vbox do profile: " + error.getMessage());
-            }
+            profileView = fxWeaver.loadView(ProfileController.class);
+
 
             profileView.setPrefWidth(calculateWdtht());
 
@@ -404,11 +429,11 @@ public class MainController {
     }
 
 
-//    private void onEnterPressed(KeyEvent keyEvent) {
-//        if (keyEvent.getCode() == KeyCode.ENTER) {
-//            onUserSubmitMessage();
-//        }
-//    }
+    private void onEnterPressed(KeyEvent keyEvent) {
+        if (keyEvent.getCode() == KeyCode.ENTER) {
+            onUserSubmitMessage();
+        }
+    }
 
     @FXML
     private void initialize() {
@@ -421,13 +446,13 @@ public class MainController {
         actualPane = CANAIS;
         toggleMenu();
 
-//        loadMessagesInChanel(EDITAIS);
+        loadMessagesByChanel(EDITAIS);
 
         //evento que monitora o VBox dentro do scroll pane, serve para deslizar a tela para baixo de form autometica
         contentScrollPane.heightProperty().addListener((obs, oldHeight, newHeight) -> {
             scrollPaneMain.setVvalue(1.0);
         });
 
-//        contentChatBar.setOnKeyPressed(event -> onEnterPressed(event));
+        contentChatBar.setOnKeyPressed(event -> onEnterPressed(event));
     }
 }

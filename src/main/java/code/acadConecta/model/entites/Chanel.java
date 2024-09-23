@@ -18,8 +18,8 @@ public class Chanel implements Serializable {
     @Column(nullable = false)
     private String description;
 
-//    @OneToMany(mappedBy = "id_chanel")
-//    private Set<Message> messageSet = new LinkedHashSet<>();
+    @OneToMany(mappedBy = "id_chanel")
+    private Set<Message> messageSet = new LinkedHashSet<>();
 
     //relacionamento com os usuários presentes no respectivo canal
     @ManyToMany(mappedBy = "chanelList")
@@ -66,13 +66,13 @@ public class Chanel implements Serializable {
         this.description = description;
     }
 
-//    public Set<Message> getMessageSet() {
-//        return messageSet;
-//    }
-//
-//    public void setMessageSet(Set<Message> messageSet) {
-//        this.messageSet = messageSet;
-//    }
+    public Set<Message> getMessageSet() {
+        return messageSet;
+    }
+
+    public void setMessageSet(Set<Message> messageSet) {
+        this.messageSet = messageSet;
+    }
 
     public Set<User> getUserSet() {
         return usersSet;

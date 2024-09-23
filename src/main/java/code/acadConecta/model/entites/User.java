@@ -29,9 +29,9 @@ public class User implements Serializable {
     @Column(name = "role_id")
     private Set<String> roles = new HashSet<>();
 
-//    @OneToMany(mappedBy = "id_users")
-//    private Set<Message> messageSet = new LinkedHashSet<>();
-//
+    @OneToMany(mappedBy = "id_user")
+    private Set<Message> messageSet = new LinkedHashSet<>();
+
     @ManyToMany
     @JoinTable(
             name = "user_in_chanel",
@@ -111,14 +111,13 @@ public class User implements Serializable {
         return codEspecial;
     }
 
-//    public Set<Message> getMessageSet() {
-//        return messageSet;
-//    }
-//
-//    public void setMessageSet(Set<Message> messageSet) {
-//        this.messageSet = messageSet;
-//    }
+    public Set<Message> getMessageSet() {
+        return messageSet;
+    }
 
+    public void setMessageSet(Set<Message> messageSet) {
+        this.messageSet = messageSet;
+    }
 
     public List<Chanel> getChanelList() {
         return chanelList;

@@ -11,6 +11,9 @@ public class TokenUtil {
     //armazena informações do usuário que está atualmente logado
     private static String currentUser;
 
+    //armazena o email descriptografado do usuário
+    private static String currentuserEmail;
+
 
     public static int getRegisterPlatform() {
         return registerPlatform;
@@ -34,5 +37,13 @@ public class TokenUtil {
 
     public static void setCurrentUser(String currentUser) {
         TokenUtil.currentUser = currentUser;
+    }
+
+    public static String getCurrentuserEmail() {
+        return currentuserEmail;
+    }
+
+    public static void setCurrentuserEmail(String currentuserEmail) {
+        TokenUtil.currentuserEmail = currentuserEmail;
     }
 }

@@ -39,12 +39,18 @@
                     </HBox.margin>
                     <Image url="@../../static/media/arrow.png" />
                 </ImageView>
+                <cursor>
+                    <Cursor fx:constant="HAND" />
+                </cursor>
             </HBox>
             <VBox fx:id="expandedMenu" visible="false">
                 <Button onAction="#onEnditaisButtonClicked" style="-fx-background-color: #392BFF; -fx-opacity: 70%;" text="Editais do Campus" textFill="WHITE">
                     <VBox.margin>
                         <Insets left="15.0" />
                     </VBox.margin>
+                    <cursor>
+                        <Cursor fx:constant="HAND" />
+                    </cursor>
                     <font>
                         <Font size="13.0" />
                     </font>
@@ -53,6 +59,9 @@
                     <VBox.margin>
                         <Insets left="15.0" />
                     </VBox.margin>
+                    <cursor>
+                        <Cursor fx:constant="HAND" />
+                    </cursor>
                     <font>
                         <Font size="13.0" />
                     </font>
@@ -61,6 +70,9 @@
                     <VBox.margin>
                         <Insets left="15.0" />
                     </VBox.margin>
+                    <cursor>
+                        <Cursor fx:constant="HAND" />
+                    </cursor>
                     <font>
                         <Font size="13.0" />
                     </font>
